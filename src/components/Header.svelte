@@ -126,11 +126,12 @@
         </span>
         {#if previousCandles && previousCandles.length > 0}
           <span class="prev-candles">
-            <span class="prev-label">Prev:</span>
             {#each previousCandles as candle}
-              <span class="candle-dot {candle === 'Up' ? 'up' : candle === 'Down' ? 'down' : 'unknown'}">
-                {candle === 'Up' ? 'UP' : candle === 'Down' ? 'DN' : '?'}
-              </span>
+              {#if candle !== 'Unknown'}
+                <span class="candle-dot {candle === 'Up' ? 'up' : 'down'}">
+                  {candle === 'Up' ? 'UP' : 'DN'}
+                </span>
+              {/if}
             {/each}
           </span>
         {/if}

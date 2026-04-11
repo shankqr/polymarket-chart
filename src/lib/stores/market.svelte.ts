@@ -4,7 +4,7 @@
 import type { Asset, Timeframe, CandleResult } from '../../types';
 import { nextMarketTimestamp, currentMarketTimestamp, durationSeconds, buildMarketSlug } from '../market-time';
 
-const GAMMA_API = 'https://gamma-api.polymarket.com/markets/slug';
+const GAMMA_API = '/api/gamma/markets/slug';
 
 interface GammaMarketResponse {
   condition?: string;
@@ -82,7 +82,7 @@ export function createMarketStore() {
       results.push(resp ? parseCandleResult(resp) : 'Unknown');
     }
 
-    previousCandles = results;
+    previousCandles = results.reverse();
   }
 
   function startTimer() {
@@ -136,7 +136,7 @@ export function createMarketStore() {
     startTimer();
 
     // Fetch previous candles in background
-    fetchPreviousCandles(asset, timeframe, 5);
+    fetchPreviousCandles(asset, timeframe, 4);
   }
 
   function destroy() {

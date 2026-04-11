@@ -63,8 +63,9 @@ export function createClobStore() {
         downMid = computeMid(downBid, downAsk);
       }
     } else if (msg.event_type === 'book') {
-      const bestBid = msg.bids && msg.bids.length > 0 ? parseFloat(msg.bids[0].price) : null;
-      const bestAsk = msg.asks && msg.asks.length > 0 ? parseFloat(msg.asks[0].price) : null;
+      // Bids sorted ascending, asks sorted descending — best prices are at the end
+      const bestBid = msg.bids && msg.bids.length > 0 ? parseFloat(msg.bids[msg.bids.length - 1].price) : null;
+      const bestAsk = msg.asks && msg.asks.length > 0 ? parseFloat(msg.asks[msg.asks.length - 1].price) : null;
 
       if (isUp) {
         upBid = bestBid;
