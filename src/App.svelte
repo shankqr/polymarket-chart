@@ -127,6 +127,7 @@
     {chartEngine}
     onToggleEngine={() => chartEngine = chartEngine === 'tv' ? 'lwc' : 'tv'}
     onSetPtb={(v) => price.setManualPtb(asset, timeframe, v)}
+    onFetchPtb={() => price.refetchScrapedPtb()}
     hasManualPtb={price.hasManualPtb}
     hasScrapedPtb={price.hasScrapedPtb}
     binanceConnected={price.connected}

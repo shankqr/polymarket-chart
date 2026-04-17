@@ -93,11 +93,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const { asset, timeframe, marketTs } = parsed;
 
   const key = kvKey(asset, timeframe, marketTs);
+  const force = url.searchParams.get('force') === '1';
 
-  // Cache hit — short-circuit
-  const cached = await readCache(env, key);
-  if (cached) {
-    return json({ asset, timeframe, marketTs, value: cached.value, scrapedAt: cached.scrapedAt, cached: true });
+  // Cache hit — short-circuit unless force=1
+  if (!force) {
+    const cached = await readCache(env, key);
+    if (cached) {
+      return json({ asset, timeframe, marketTs, value: cached.value, scrapedAt: cached.scrapedAt, cached: true });
+    }
   }
 
   // In-flight lock — another request is already scraping

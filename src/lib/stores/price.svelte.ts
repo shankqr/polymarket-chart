@@ -30,6 +30,7 @@ export function createPriceStore() {
   let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
   let reconnectDelay = 1000;
   let _asset: Asset | null = null;
+  let _timeframe: Timeframe | null = null;
   let _useChainlink = false;
   let chainlinkWs: WebSocket | null = null;
   let chainlinkReconnectTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -224,20 +225,27 @@ export function createPriceStore() {
     }
   }
 
-  async function triggerScrape(asset: Asset, timeframe: Timeframe, marketTs: number) {
+  async function triggerScrape(asset: Asset, timeframe: Timeframe, marketTs: number, force = false): Promise<boolean> {
     try {
-      const resp = await fetch(
-        `/api/scrape-ptb?asset=${asset}&timeframe=${timeframe}&marketTs=${marketTs}`,
-        { method: 'POST' },
-      );
-      if (!resp.ok) return;
+      const qs = `asset=${asset}&timeframe=${timeframe}&marketTs=${marketTs}${force ? '&force=1' : ''}`;
+      const resp = await fetch(`/api/scrape-ptb?${qs}`, { method: 'POST' });
+      if (!resp.ok) return false;
       const data = await resp.json() as { value: number | null };
       if (data.value !== null && _asset === asset) {
         scrapedPtb = data.value;
+        return true;
       }
+      return false;
     } catch {
-      // Scraper unavailable — silent fallback to Binance PTB
+      return false;
     }
+  }
+
+  let _currentMarketTs: number | null = null;
+
+  async function refetchScrapedPtb(): Promise<boolean> {
+    if (!_asset || !_timeframe || _currentMarketTs === null) return false;
+    return triggerScrape(_asset, _timeframe, _currentMarketTs, true);
   }
 
   async function setManualPtb(asset: Asset, timeframe: Timeframe, value: number | null) {
@@ -260,6 +268,8 @@ export function createPriceStore() {
   async function init(asset: Asset, timeframe: Timeframe, marketStartTs: number) {
     destroy();
     _asset = asset;
+    _timeframe = timeframe;
+    _currentMarketTs = marketStartTs;
     _useChainlink = useChainlinkForTimeframe(timeframe);
 
     // Bootstrap historical klines
@@ -296,6 +306,8 @@ export function createPriceStore() {
 
   function destroy() {
     _asset = null;
+    _timeframe = null;
+    _currentMarketTs = null;
     _useChainlink = false;
     manualPtb = null;
     scrapedPtb = null;
@@ -323,5 +335,6 @@ export function createPriceStore() {
     init,
     destroy,
     setManualPtb,
+    refetchScrapedPtb,
   };
 }

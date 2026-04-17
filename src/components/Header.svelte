@@ -14,6 +14,7 @@
     chartEngine = 'lwc',
     onToggleEngine = () => {},
     onSetPtb = (_v: number | null) => {},
+    onFetchPtb = async (): Promise<boolean> => false,
     hasManualPtb = false,
     hasScrapedPtb = false,
     binanceConnected,
@@ -32,6 +33,7 @@
     chartEngine?: 'lwc' | 'tv';
     onToggleEngine?: () => void;
     onSetPtb?: (value: number | null) => void;
+    onFetchPtb?: () => Promise<boolean>;
     hasManualPtb?: boolean;
     hasScrapedPtb?: boolean;
     binanceConnected: boolean;
@@ -42,6 +44,23 @@
   let ptbInput = $state('');
   let ptbSaving = $state(false);
   let ptbEditing = $state(false);
+  let ptbFetching = $state(false);
+  let ptbFetchFailed = $state(false);
+
+  async function handlePtbFetch() {
+    if (ptbFetching) return;
+    ptbFetching = true;
+    ptbFetchFailed = false;
+    try {
+      const ok = await onFetchPtb();
+      if (!ok) ptbFetchFailed = true;
+    } finally {
+      ptbFetching = false;
+      if (ptbFetchFailed) {
+        setTimeout(() => { ptbFetchFailed = false; }, 2000);
+      }
+    }
+  }
 
   function startPtbEdit() {
     ptbInput = priceToBeat !== null ? formatPrice(priceToBeat, asset).replace('$', '').replace(/,/g, '') : '';
@@ -178,10 +197,22 @@
           {/if}
         </div>
       {:else}
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="price-value ptb-clickable" onclick={startPtbEdit}>
-          {formatPrice(priceToBeat, asset)}
+        <div class="ptb-value-row">
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="price-value ptb-clickable" onclick={startPtbEdit}>
+            {formatPrice(priceToBeat, asset)}
+          </div>
+          <button
+            class="ptb-fetch-btn"
+            class:fetching={ptbFetching}
+            class:failed={ptbFetchFailed}
+            onclick={handlePtbFetch}
+            disabled={ptbFetching}
+            title="Re-scrape from Polymarket"
+          >
+            {ptbFetching ? '…' : ptbFetchFailed ? '!' : '↻'}
+          </button>
         </div>
       {/if}
     </div>
@@ -308,6 +339,44 @@
     color: #E64B4B;
   }
   .ptb-clear:hover {
+    border-color: #E64B4B;
+  }
+  .ptb-value-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .ptb-fetch-btn {
+    background: #1c2128;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    font-size: 9px;
+    line-height: 1;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ptb-fetch-btn:hover:not(:disabled) {
+    color: #58a6ff;
+    border-color: #58a6ff;
+  }
+  .ptb-fetch-btn:disabled {
+    cursor: wait;
+    opacity: 0.8;
+  }
+  .ptb-fetch-btn.fetching {
+    color: #58a6ff;
+    border-color: #58a6ff;
+  }
+  .ptb-fetch-btn.failed {
+    color: #E64B4B;
     border-color: #E64B4B;
   }
 </style>
