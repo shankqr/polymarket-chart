@@ -245,6 +245,10 @@ export function createPriceStore() {
 
   async function refetchScrapedPtb(): Promise<boolean> {
     if (!_asset || !_timeframe || _currentMarketTs === null) return false;
+    // Clear any manual override first so the scraped value is visible.
+    if (manualPtb !== null) {
+      await setManualPtb(_asset, _timeframe, null);
+    }
     return triggerScrape(_asset, _timeframe, _currentMarketTs, true);
   }
 
