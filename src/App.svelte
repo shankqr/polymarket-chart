@@ -128,6 +128,7 @@
     onToggleEngine={() => chartEngine = chartEngine === 'tv' ? 'lwc' : 'tv'}
     onSetPtb={(v) => price.setManualPtb(asset, timeframe, v)}
     hasManualPtb={price.hasManualPtb}
+    hasScrapedPtb={price.hasScrapedPtb}
     binanceConnected={price.connected}
     clobConnected={clob.connected}
     marketConnected={market.connected}

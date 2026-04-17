@@ -15,6 +15,7 @@
     onToggleEngine = () => {},
     onSetPtb = (_v: number | null) => {},
     hasManualPtb = false,
+    hasScrapedPtb = false,
     binanceConnected,
     clobConnected,
     marketConnected,
@@ -32,6 +33,7 @@
     onToggleEngine?: () => void;
     onSetPtb?: (value: number | null) => void;
     hasManualPtb?: boolean;
+    hasScrapedPtb?: boolean;
     binanceConnected: boolean;
     clobConnected: boolean;
     marketConnected: boolean;
@@ -156,7 +158,7 @@
     <div class="price-block">
       <div class="price-label">
         PRICE TO BEAT
-        {#if hasManualPtb}<span class="manual-badge">MANUAL</span>{/if}
+        {#if hasManualPtb}<span class="manual-badge">MANUAL</span>{:else if hasScrapedPtb}<span class="poly-badge">POLY</span>{/if}
       </div>
       {#if ptbEditing}
         <div class="ptb-inline-edit">
@@ -246,6 +248,15 @@
     font-size: 7px;
     background: #C4922A;
     color: #000;
+    padding: 0 4px;
+    border-radius: 2px;
+    font-weight: 700;
+    margin-left: 4px;
+  }
+  .poly-badge {
+    font-size: 7px;
+    background: #2A6BC4;
+    color: #fff;
     padding: 0 4px;
     border-radius: 2px;
     font-weight: 700;

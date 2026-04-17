@@ -192,8 +192,11 @@ export function createPriceStore() {
   }
 
   let manualPtb = $state<number | null>(null);
+  let scrapedPtb = $state<number | null>(null);
 
-  let effectivePtb = $derived(manualPtb ?? priceToBeat);
+  let effectivePtb = $derived(manualPtb ?? scrapedPtb ?? priceToBeat);
+
+  let scrapeTimeout: ReturnType<typeof setTimeout> | undefined;
 
   async function fetchManualPtb(asset: Asset, timeframe: Timeframe) {
     try {
@@ -205,6 +208,35 @@ export function createPriceStore() {
       }
     } catch {
       // API not available — ignore
+    }
+  }
+
+  async function fetchScrapedPtb(asset: Asset, timeframe: Timeframe, marketTs: number) {
+    try {
+      const resp = await fetch(`/api/scrape-ptb?asset=${asset}&timeframe=${timeframe}&marketTs=${marketTs}`);
+      if (!resp.ok) return;
+      const data = await resp.json() as { value: number | null };
+      if (data.value !== null && _asset === asset) {
+        scrapedPtb = data.value;
+      }
+    } catch {
+      // API not available — ignore
+    }
+  }
+
+  async function triggerScrape(asset: Asset, timeframe: Timeframe, marketTs: number) {
+    try {
+      const resp = await fetch(
+        `/api/scrape-ptb?asset=${asset}&timeframe=${timeframe}&marketTs=${marketTs}`,
+        { method: 'POST' },
+      );
+      if (!resp.ok) return;
+      const data = await resp.json() as { value: number | null };
+      if (data.value !== null && _asset === asset) {
+        scrapedPtb = data.value;
+      }
+    } catch {
+      // Scraper unavailable — silent fallback to Binance PTB
     }
   }
 
@@ -244,6 +276,15 @@ export function createPriceStore() {
     // Check for manual PTB override from API
     await fetchManualPtb(asset, timeframe);
 
+    // Check for cached Polymarket-scraped PTB
+    await fetchScrapedPtb(asset, timeframe, marketStartTs);
+
+    // Trigger a fresh scrape 5s after market start (or 5s from now if mid-market)
+    if (scrapeTimeout) clearTimeout(scrapeTimeout);
+    scrapeTimeout = setTimeout(() => {
+      if (_asset === asset) triggerScrape(asset, timeframe, marketStartTs);
+    }, 5000);
+
     // Connect Binance WebSocket for kline chart data
     connectWs(asset);
 
@@ -257,6 +298,9 @@ export function createPriceStore() {
     _asset = null;
     _useChainlink = false;
     manualPtb = null;
+    scrapedPtb = null;
+    if (scrapeTimeout) clearTimeout(scrapeTimeout);
+    scrapeTimeout = undefined;
     if (reconnectTimeout) clearTimeout(reconnectTimeout);
     reconnectTimeout = undefined;
     ws?.close();
@@ -275,6 +319,7 @@ export function createPriceStore() {
     get priceToBeat() { return effectivePtb; },
     get connected() { return connected; },
     get hasManualPtb() { return manualPtb !== null; },
+    get hasScrapedPtb() { return scrapedPtb !== null && manualPtb === null; },
     init,
     destroy,
     setManualPtb,

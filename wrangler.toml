@@ -1,0 +1,11 @@
+name = "polybot-web"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "dist"
+
+[[kv_namespaces]]
+binding = "PTB"
+id = "4da7c1b0103442e988a3b597ff0b90c3"
+
+[[services]]
+binding = "SCRAPER"
+service = "polybot-ptb-scraper"

@@ -1,0 +1,19 @@
+{
+  "name": "polybot-ptb-scraper",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "@cloudflare/puppeteer": "^1.0.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "typescript": "~5.9.3",
+    "wrangler": "^4.81.1"
+  }
+}
