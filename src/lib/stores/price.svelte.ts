@@ -4,9 +4,16 @@
 import type { Asset, Timeframe, KlineEntry } from '../../types';
 import { binanceSymbol, binancePtbUrl } from '../market-time';
 
-const BINANCE_WS = 'wss://stream.binance.com:9443/ws';
-const BINANCE_REST = 'https://api.binance.com/api/v3/klines';
+// Routed through Cloudflare Pages Functions to bypass networks that block
+// api.binance.com / stream.binance.com directly (mobile carriers, smart TVs).
+const BINANCE_REST = '/api/binance/api/v3/klines';
 const RTDS_WS = 'wss://ws-live-data.polymarket.com';
+
+function binanceWsUrl(stream: string): string {
+  const proto = typeof location !== 'undefined' && location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = typeof location !== 'undefined' ? location.host : '';
+  return `${proto}//${host}/api/ws/binance?stream=${stream}`;
+}
 
 const CHAINLINK_SYMBOLS: Record<Asset, string> = {
   BTC: 'btc/usd',
@@ -77,7 +84,7 @@ export function createPriceStore() {
 
   function connectWs(asset: Asset) {
     const symbol = binanceSymbol(asset).toLowerCase();
-    const socket = new WebSocket(`${BINANCE_WS}/${symbol}@kline_1m`);
+    const socket = new WebSocket(binanceWsUrl(`${symbol}@kline_1m`));
     ws = socket;
 
     socket.onopen = () => {

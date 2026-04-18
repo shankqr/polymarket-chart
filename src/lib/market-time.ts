@@ -224,9 +224,11 @@ export function buildMarketSlug(asset: Asset, timeframe: Timeframe, timestamp: n
   }
 }
 
-/** Build the Binance klines URL for fetching price-to-beat. */
+/** Build the Binance klines URL for fetching price-to-beat.
+ *  Routed through the Cloudflare Pages proxy to bypass networks that block
+ *  api.binance.com directly (mobile carriers, smart TVs). */
 export function binancePtbUrl(asset: Asset, timestamp: number, timeframe: Timeframe): string {
   const symbol = binanceSymbol(asset);
   const interval = timeframe === 'daily' ? '1d' : '1h';
-  return `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&startTime=${timestamp * 1000}&limit=1`;
+  return `/api/binance/api/v3/klines?symbol=${symbol}&interval=${interval}&startTime=${timestamp * 1000}&limit=1`;
 }
