@@ -50,7 +50,7 @@ function buildAllKlines(klines: KlineEntry[], currentKline: KlineEntry | null): 
 }
 
 /** Number of bars visible on each side of the last bar when centering. */
-const BARS_EACH_SIDE = 6;
+const BARS_EACH_SIDE = 30;
 
 /** Compute the rightOffset (in bars) needed so the end time is visible with padding. */
 function computeEndTimeOffset(
