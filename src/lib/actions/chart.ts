@@ -50,9 +50,9 @@ function buildAllKlines(klines: KlineEntry[], currentKline: KlineEntry | null): 
 }
 
 /** Bars of history visible to the left of the last bar in the default view. */
-const BARS_LEFT = 90;
+const BARS_LEFT = 96;
 /** Bars of empty space visible to the right of the last bar in the default view. */
-const BARS_RIGHT = 30;
+const BARS_RIGHT = 24;
 
 /** Compute the rightOffset (in bars) needed so the end time is visible with padding. */
 function computeEndTimeOffset(
