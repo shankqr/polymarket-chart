@@ -47,26 +47,90 @@ export function createPriceStore() {
   let _gen = 0;
 
   // Watchdog — WebSockets can stop delivering messages without firing onclose
-  // (Cloudflare proxy idle eviction, Chainlink backend hiccups). Track last
-  // message time and force a reconnect when nothing's arrived for a while.
+  // (Cloudflare proxy idle eviction, Chainlink backend hiccups, OS sleep).
+  // Track last message time and force a full reconnect when nothing's arrived
+  // for a while. We don't rely on ws.close() triggering onclose — some broken
+  // sockets never fire it — so we detach handlers and start a new WS directly.
   let binanceLastMsgAt = 0;
   let chainlinkLastMsgAt = 0;
   let watchdogInterval: ReturnType<typeof setInterval> | undefined;
-  const BINANCE_STALE_MS = 60_000;    // 1m klines tick every few seconds normally
-  const CHAINLINK_STALE_MS = 30_000;  // Chainlink prices arrive ~2x/sec normally
-  const WATCHDOG_INTERVAL_MS = 10_000;
+  let visibilityHandler: (() => void) | null = null;
+  const BINANCE_STALE_MS = 45_000;    // 1m klines tick every few seconds normally
+  const CHAINLINK_STALE_MS = 15_000;  // Chainlink prices arrive ~2x/sec normally
+  const WATCHDOG_INTERVAL_MS = 5_000;
+
+  function hardReconnectBinance() {
+    if (!_asset) return;
+    if (ws) {
+      try {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.close();
+      } catch { /* ignore */ }
+      ws = null;
+    }
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+      reconnectTimeout = undefined;
+    }
+    connectWs(_asset);
+  }
+
+  function hardReconnectChainlink() {
+    if (!_asset || !_useChainlink) return;
+    if (chainlinkWs) {
+      try {
+        chainlinkWs.onopen = null;
+        chainlinkWs.onmessage = null;
+        chainlinkWs.onclose = null;
+        chainlinkWs.onerror = null;
+        chainlinkWs.close();
+      } catch { /* ignore */ }
+      chainlinkWs = null;
+    }
+    if (chainlinkReconnectTimeout) {
+      clearTimeout(chainlinkReconnectTimeout);
+      chainlinkReconnectTimeout = undefined;
+    }
+    connectChainlinkWs(_asset);
+  }
+
+  function checkFreshness() {
+    if (!_asset) return;
+    const now = Date.now();
+    // Force reconnect whenever messages are stale — don't care whether the
+    // socket is reporting OPEN/CONNECTING/CLOSED, the authoritative signal is
+    // "are we actually receiving fresh data".
+    if (binanceLastMsgAt > 0 && now - binanceLastMsgAt > BINANCE_STALE_MS) {
+      hardReconnectBinance();
+    }
+    if (_useChainlink && chainlinkLastMsgAt > 0 && now - chainlinkLastMsgAt > CHAINLINK_STALE_MS) {
+      hardReconnectChainlink();
+    }
+  }
 
   function startWatchdog() {
     if (watchdogInterval) clearInterval(watchdogInterval);
-    watchdogInterval = setInterval(() => {
-      const now = Date.now();
-      if (ws && ws.readyState === WebSocket.OPEN && binanceLastMsgAt > 0 && now - binanceLastMsgAt > BINANCE_STALE_MS) {
-        ws.close(); // triggers onclose -> reconnect
+    watchdogInterval = setInterval(checkFreshness, WATCHDOG_INTERVAL_MS);
+
+    if (visibilityHandler) {
+      document.removeEventListener('visibilitychange', visibilityHandler);
+      window.removeEventListener('online', visibilityHandler);
+      window.removeEventListener('focus', visibilityHandler);
+    }
+    visibilityHandler = () => {
+      // Tab came back from background / network came back / window refocused.
+      // Browsers throttle timers & WS while hidden and sockets often die
+      // silently during sleep, so bypass the timer and re-evaluate now.
+      if (document.visibilityState === 'visible') {
+        checkFreshness();
       }
-      if (chainlinkWs && chainlinkWs.readyState === WebSocket.OPEN && _useChainlink && chainlinkLastMsgAt > 0 && now - chainlinkLastMsgAt > CHAINLINK_STALE_MS) {
-        chainlinkWs.close();
-      }
-    }, WATCHDOG_INTERVAL_MS);
+    };
+    document.addEventListener('visibilitychange', visibilityHandler);
+    window.addEventListener('online', visibilityHandler);
+    window.addEventListener('focus', visibilityHandler);
   }
 
   function parseKlineArray(raw: number[]): KlineEntry {
@@ -370,6 +434,12 @@ export function createPriceStore() {
     scrapedPtb = null;
     if (watchdogInterval) clearInterval(watchdogInterval);
     watchdogInterval = undefined;
+    if (visibilityHandler) {
+      document.removeEventListener('visibilitychange', visibilityHandler);
+      window.removeEventListener('online', visibilityHandler);
+      window.removeEventListener('focus', visibilityHandler);
+      visibilityHandler = null;
+    }
     binanceLastMsgAt = 0;
     chainlinkLastMsgAt = 0;
     if (scrapeTimeout) clearTimeout(scrapeTimeout);
