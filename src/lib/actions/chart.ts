@@ -49,15 +49,17 @@ function buildAllKlines(klines: KlineEntry[], currentKline: KlineEntry | null): 
   return all;
 }
 
-/** Number of bars visible on each side of the last bar when centering. */
-const BARS_EACH_SIDE = 60;
+/** Bars of history visible to the left of the last bar in the default view. */
+const BARS_LEFT = 90;
+/** Bars of empty space visible to the right of the last bar in the default view. */
+const BARS_RIGHT = 30;
 
 /** Compute the rightOffset (in bars) needed so the end time is visible with padding. */
 function computeEndTimeOffset(
   series: ISeriesApi<'Candlestick'> | null,
   endTime: Time | null,
 ): number {
-  const DEFAULT_OFFSET = BARS_EACH_SIDE;
+  const DEFAULT_OFFSET = BARS_RIGHT;
   if (!series || !endTime) return DEFAULT_OFFSET;
   const data = series.data() as CandlestickData[];
   if (data.length < 2) return DEFAULT_OFFSET;
@@ -70,7 +72,7 @@ function computeEndTimeOffset(
   return Math.max(DEFAULT_OFFSET, Math.ceil((endNum - lastTime) / barInterval) + 2);
 }
 
-/** Center the chart on the last bar with BARS_EACH_SIDE bars on either side. */
+/** Position the last bar at ~75% from the left so Start Time lands in the right third. */
 function fitToMarketWindow(
   chart: IChartApi | null,
   series: ISeriesApi<'Candlestick'> | null,
@@ -81,10 +83,10 @@ function fitToMarketWindow(
   const data = series.data() as CandlestickData[];
   if (data.length === 0) return;
   const lastIdx = data.length - 1;
-  chart.timeScale().applyOptions({ rightOffset: BARS_EACH_SIDE });
+  chart.timeScale().applyOptions({ rightOffset: BARS_RIGHT });
   chart.timeScale().setVisibleLogicalRange({
-    from: lastIdx - BARS_EACH_SIDE,
-    to: lastIdx + BARS_EACH_SIDE,
+    from: lastIdx - BARS_LEFT,
+    to: lastIdx + BARS_RIGHT,
   });
 }
 
