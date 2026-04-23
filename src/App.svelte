@@ -9,7 +9,7 @@
   import ChartTab from './components/ChartTab.svelte';
 
   let asset = $state<Asset>('BTC');
-  let timeframe = $state<Timeframe>('15m');
+  let timeframe = $state<Timeframe>('5m');
   let chartEngine = $state<'lwc' | 'tv'>('lwc');
 
   const market = createMarketStore();

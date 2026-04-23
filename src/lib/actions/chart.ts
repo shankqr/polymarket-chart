@@ -266,6 +266,7 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
   function showMacdPane(allKlines: KlineEntry[]) {
     const savedScroll = chart.timeScale().scrollPosition();
     const pane = chart.addPane();
+    pane.moveTo(1);
     macdPane = pane;
 
     macdHistogram = pane.addSeries(HistogramSeries, {
