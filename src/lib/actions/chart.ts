@@ -49,12 +49,15 @@ function buildAllKlines(klines: KlineEntry[], currentKline: KlineEntry | null): 
   return all;
 }
 
+/** Number of bars visible on each side of the last bar when centering. */
+const BARS_EACH_SIDE = 6;
+
 /** Compute the rightOffset (in bars) needed so the end time is visible with padding. */
 function computeEndTimeOffset(
   series: ISeriesApi<'Candlestick'> | null,
   endTime: Time | null,
 ): number {
-  const DEFAULT_OFFSET = 10;
+  const DEFAULT_OFFSET = BARS_EACH_SIDE;
   if (!series || !endTime) return DEFAULT_OFFSET;
   const data = series.data() as CandlestickData[];
   if (data.length < 2) return DEFAULT_OFFSET;
@@ -64,21 +67,25 @@ function computeEndTimeOffset(
   const prevTime = data[data.length - 2].time as number;
   const barInterval = lastTime - prevTime;
   if (barInterval <= 0) return DEFAULT_OFFSET;
-  const paddingBars = Math.ceil(300 / barInterval); // 5 min padding after end
-  return Math.ceil((endNum - lastTime) / barInterval) + paddingBars;
+  return Math.max(DEFAULT_OFFSET, Math.ceil((endNum - lastTime) / barInterval) + 2);
 }
 
-/** Fit chart content and ensure market end time is visible via rightOffset. */
+/** Center the chart on the last bar with BARS_EACH_SIDE bars on either side. */
 function fitToMarketWindow(
   chart: IChartApi | null,
   series: ISeriesApi<'Candlestick'> | null,
   _startTime: Time | null,
-  endTime: Time | null,
+  _endTime: Time | null,
 ) {
-  if (!chart) return;
-  const offset = computeEndTimeOffset(series, endTime);
-  chart.timeScale().applyOptions({ rightOffset: offset });
-  chart.timeScale().fitContent();
+  if (!chart || !series) return;
+  const data = series.data() as CandlestickData[];
+  if (data.length === 0) return;
+  const lastIdx = data.length - 1;
+  chart.timeScale().applyOptions({ rightOffset: BARS_EACH_SIDE });
+  chart.timeScale().setVisibleLogicalRange({
+    from: lastIdx - BARS_EACH_SIDE,
+    to: lastIdx + BARS_EACH_SIDE,
+  });
 }
 
 function updateStretchFactors(
@@ -486,9 +493,7 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
           volumeSeries.update(lastVolume);
         }
         if (autoFollow && endTime) {
-          const offset = computeEndTimeOffset(candleSeries, endTime);
-          chart.timeScale().applyOptions({ rightOffset: offset });
-          chart.timeScale().scrollToRealTime();
+          fitToMarketWindow(chart, candleSeries, startTime, endTime);
         }
         refreshOverlays(allKlines);
       }
