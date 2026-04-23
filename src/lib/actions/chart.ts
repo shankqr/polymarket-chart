@@ -154,9 +154,11 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
 
   // ─── Primitives ───────────────────────────────────────────────
   const ptbLabel = new LeftPriceLabelPrimitive('Target', '#8b949e');
+  const deltaLabel = new LeftPriceLabelPrimitive('', '#8b949e');
   const fillLabels = new FillLabelsPrimitive();
   const marketLines = new VerticalLinesPrimitive('rgba(255, 255, 255, 0.5)');
   candleSeries.attachPrimitive(ptbLabel);
+  candleSeries.attachPrimitive(deltaLabel);
   candleSeries.attachPrimitive(fillLabels);
   candleSeries.attachPrimitive(marketLines);
 
@@ -550,10 +552,13 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
       const arrow = delta > 0 ? '\u25B2' : delta < 0 ? '\u25BC' : '';
       const text = `${arrow} $${Math.abs(delta).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
       const color = delta > 0 ? '#47C482' : delta < 0 ? '#E64B4B' : '#8b949e';
-      candleSeries.applyOptions({ title: text });
+      deltaLabel.setText(text);
+      deltaLabel.setColor(color);
+      deltaLabel.setPrice(currentPrice);
       currentPriceSeries.applyOptions({ priceLineColor: color });
     } else {
-      candleSeries.applyOptions({ title: '' });
+      deltaLabel.setText('');
+      deltaLabel.setPrice(null);
       currentPriceSeries.applyOptions({ priceLineColor: '#8b949e' });
     }
 
@@ -580,7 +585,6 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
           lineWidth: 4,
           lineStyle: 0,
           axisLabelVisible: true,
-          title: 'Target',
         });
       }
       ptbLabel.setPrice(params.priceToBeat);

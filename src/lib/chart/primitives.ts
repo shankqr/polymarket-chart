@@ -85,6 +85,16 @@ export class LeftPriceLabelPrimitive implements ISeriesPrimitiveBase<SeriesAttac
     this._requestUpdate?.();
   }
 
+  setText(text: string) {
+    this._text = text;
+    this._requestUpdate?.();
+  }
+
+  setColor(color: string) {
+    this._color = color;
+    this._requestUpdate?.();
+  }
+
   getY(): number | null {
     if (this._price === null || !this._series) return null;
     return this._series.priceToCoordinate(this._price);
