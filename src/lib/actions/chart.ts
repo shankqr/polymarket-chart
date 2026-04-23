@@ -155,11 +155,9 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
   });
 
   // ─── Primitives ───────────────────────────────────────────────
-  const ptbLabel = new LeftPriceLabelPrimitive('Target', '#8b949e');
   const deltaLabel = new LeftPriceLabelPrimitive('', '#8b949e');
   const fillLabels = new FillLabelsPrimitive();
   const marketLines = new VerticalLinesPrimitive('rgba(255, 255, 255, 0.5)');
-  candleSeries.attachPrimitive(ptbLabel);
   candleSeries.attachPrimitive(deltaLabel);
   candleSeries.attachPrimitive(fillLabels);
   candleSeries.attachPrimitive(marketLines);
@@ -589,7 +587,6 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
           axisLabelVisible: true,
         });
       }
-      ptbLabel.setPrice(params.priceToBeat);
       prevPtb = params.priceToBeat;
     }
 
