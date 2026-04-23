@@ -42,6 +42,9 @@ export function createPriceStore() {
   let chainlinkWs: WebSocket | null = null;
   let chainlinkReconnectTimeout: ReturnType<typeof setTimeout> | undefined;
   let chainlinkReconnectDelay = 1000;
+  // Monotonic generation bumped on every destroy()/init() call. Stale awaits
+  // from a superseded init bail out by comparing against the current gen.
+  let _gen = 0;
 
   function parseKlineArray(raw: number[]): KlineEntry {
     return {
@@ -278,32 +281,39 @@ export function createPriceStore() {
 
   async function init(asset: Asset, timeframe: Timeframe, marketStartTs: number) {
     destroy();
+    const gen = ++_gen;
     _asset = asset;
     _timeframe = timeframe;
     _currentMarketTs = marketStartTs;
     _useChainlink = useChainlinkForTimeframe(timeframe);
 
-    // Bootstrap historical klines
+    // Bootstrap historical klines. Only overwrite existing klines if this init
+    // is still the latest AND we actually got data back — otherwise a late or
+    // failed fetch from a superseded init would clobber fresh state with [].
     const historical = await fetchHistoricalKlines(asset);
-    klines = historical;
+    if (gen !== _gen) return;
     if (historical.length > 0) {
+      klines = historical;
       assetPrice = historical[historical.length - 1].close;
     }
 
     // Fetch price-to-beat from Binance
     const ptb = await fetchPriceToBeat(asset, marketStartTs, timeframe);
+    if (gen !== _gen) return;
     priceToBeat = ptb;
 
     // Check for manual PTB override from API
     await fetchManualPtb(asset, timeframe);
+    if (gen !== _gen) return;
 
     // Check for cached Polymarket-scraped PTB
     await fetchScrapedPtb(asset, timeframe, marketStartTs);
+    if (gen !== _gen) return;
 
     // Trigger a fresh scrape 5s after market start (or 5s from now if mid-market)
     if (scrapeTimeout) clearTimeout(scrapeTimeout);
     scrapeTimeout = setTimeout(() => {
-      if (_asset === asset) triggerScrape(asset, timeframe, marketStartTs);
+      if (gen === _gen && _asset === asset) triggerScrape(asset, timeframe, marketStartTs);
     }, 5000);
 
     // Connect Binance WebSocket for kline chart data
@@ -316,6 +326,7 @@ export function createPriceStore() {
   }
 
   function destroy() {
+    _gen++;
     _asset = null;
     _timeframe = null;
     _currentMarketTs = null;
