@@ -263,7 +263,7 @@ class VerticalLinesRenderer implements IPrimitivePaneRenderer {
   draw(target: CanvasRenderingTarget2D) {
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
       ctx.strokeStyle = this._color;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2.4;
       ctx.setLineDash([4, 4]);
       for (const { x, label } of this._lines) {
         ctx.beginPath();
