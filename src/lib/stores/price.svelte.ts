@@ -46,6 +46,29 @@ export function createPriceStore() {
   // from a superseded init bail out by comparing against the current gen.
   let _gen = 0;
 
+  // Watchdog — WebSockets can stop delivering messages without firing onclose
+  // (Cloudflare proxy idle eviction, Chainlink backend hiccups). Track last
+  // message time and force a reconnect when nothing's arrived for a while.
+  let binanceLastMsgAt = 0;
+  let chainlinkLastMsgAt = 0;
+  let watchdogInterval: ReturnType<typeof setInterval> | undefined;
+  const BINANCE_STALE_MS = 60_000;    // 1m klines tick every few seconds normally
+  const CHAINLINK_STALE_MS = 30_000;  // Chainlink prices arrive ~2x/sec normally
+  const WATCHDOG_INTERVAL_MS = 10_000;
+
+  function startWatchdog() {
+    if (watchdogInterval) clearInterval(watchdogInterval);
+    watchdogInterval = setInterval(() => {
+      const now = Date.now();
+      if (ws && ws.readyState === WebSocket.OPEN && binanceLastMsgAt > 0 && now - binanceLastMsgAt > BINANCE_STALE_MS) {
+        ws.close(); // triggers onclose -> reconnect
+      }
+      if (chainlinkWs && chainlinkWs.readyState === WebSocket.OPEN && _useChainlink && chainlinkLastMsgAt > 0 && now - chainlinkLastMsgAt > CHAINLINK_STALE_MS) {
+        chainlinkWs.close();
+      }
+    }, WATCHDOG_INTERVAL_MS);
+  }
+
   function parseKlineArray(raw: number[]): KlineEntry {
     return {
       open_time_ms: raw[0] as number,
@@ -89,13 +112,16 @@ export function createPriceStore() {
     const symbol = binanceSymbol(asset).toLowerCase();
     const socket = new WebSocket(binanceWsUrl(`${symbol}@kline_1m`));
     ws = socket;
+    binanceLastMsgAt = Date.now();
 
     socket.onopen = () => {
       connected = true;
       reconnectDelay = 1000;
+      binanceLastMsgAt = Date.now();
     };
 
     socket.onmessage = (event) => {
+      binanceLastMsgAt = Date.now();
       try {
         const msg = JSON.parse(event.data as string) as { k: { t: number; o: string; h: string; l: string; c: string; v: string; x: boolean } };
         const k = msg.k;
@@ -108,7 +134,11 @@ export function createPriceStore() {
           volume: parseFloat(k.v),
         };
 
-        if (!_useChainlink) {
+        // When not using Chainlink, Binance drives assetPrice directly. When
+        // using Chainlink, still fall back to Binance if Chainlink hasn't
+        // delivered a price recently (stale or reconnecting), so the live
+        // candle and dotted line keep progressing.
+        if (!_useChainlink || Date.now() - chainlinkLastMsgAt > 10_000) {
           assetPrice = entry.close;
         }
 
@@ -151,9 +181,11 @@ export function createPriceStore() {
     const symbol = CHAINLINK_SYMBOLS[asset];
     const socket = new WebSocket(RTDS_WS);
     chainlinkWs = socket;
+    chainlinkLastMsgAt = Date.now();
 
     socket.onopen = () => {
       chainlinkReconnectDelay = 1000;
+      chainlinkLastMsgAt = Date.now();
       socket.send(JSON.stringify({
         action: 'subscribe',
         subscriptions: [{
@@ -165,6 +197,7 @@ export function createPriceStore() {
     };
 
     socket.onmessage = (event) => {
+      chainlinkLastMsgAt = Date.now();
       try {
         const raw = (event.data as string).trim();
         if (!raw) return;
@@ -323,6 +356,8 @@ export function createPriceStore() {
     if (_useChainlink) {
       connectChainlinkWs(asset);
     }
+
+    startWatchdog();
   }
 
   function destroy() {
@@ -333,6 +368,10 @@ export function createPriceStore() {
     _useChainlink = false;
     manualPtb = null;
     scrapedPtb = null;
+    if (watchdogInterval) clearInterval(watchdogInterval);
+    watchdogInterval = undefined;
+    binanceLastMsgAt = 0;
+    chainlinkLastMsgAt = 0;
     if (scrapeTimeout) clearTimeout(scrapeTimeout);
     scrapeTimeout = undefined;
     if (reconnectTimeout) clearTimeout(reconnectTimeout);

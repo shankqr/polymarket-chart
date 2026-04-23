@@ -494,19 +494,21 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
         fillLabels.setFills([]);
         prevFillCount = 0;
       } else {
-        // Incremental: update the last candle + volume
+        // Incremental: update the last candle + volume. Each update is wrapped
+        // individually so a transient glitch (e.g. out-of-order tick during a
+        // WS reconnect) doesn't knock the rest of the render off.
         const lastCandle = candles[candles.length - 1];
         const lastVolume = volumes[volumes.length - 1];
         if (lastCandle) {
-          candleSeries.update(lastCandle);
+          try { candleSeries.update(lastCandle); } catch { /* swallow */ }
         }
         if (lastVolume) {
-          volumeSeries.update(lastVolume);
+          try { volumeSeries.update(lastVolume); } catch { /* swallow */ }
         }
         if (autoFollow && endTime) {
-          fitToMarketWindow(chart, candleSeries, startTime, endTime);
+          try { fitToMarketWindow(chart, candleSeries, startTime, endTime); } catch { /* swallow */ }
         }
-        refreshOverlays(allKlines);
+        try { refreshOverlays(allKlines); } catch { /* swallow */ }
       }
     } catch {
       inited = false;
