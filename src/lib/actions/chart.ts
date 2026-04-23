@@ -443,6 +443,15 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
       low: k.low,
       close: k.close,
     }));
+    // Stretch the last (live) candle to the streamed asset price so its close
+    // always meets the current-price dotted line, even when the asset price
+    // feed (e.g. Chainlink) updates more often than Binance kline ticks.
+    if (params.assetPrice !== null && candles.length > 0) {
+      const last = candles[candles.length - 1];
+      last.close = params.assetPrice;
+      if (params.assetPrice > last.high) last.high = params.assetPrice;
+      if (params.assetPrice < last.low) last.low = params.assetPrice;
+    }
 
     const volumes: HistogramData[] = allKlines.map((k) => ({
       time: klineToTime(k.open_time_ms),
