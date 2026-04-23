@@ -582,7 +582,7 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
         ptbLine = candleSeries.createPriceLine({
           price: params.priceToBeat,
           color: '#8b949e',
-          lineWidth: 4,
+          lineWidth: 3,
           lineStyle: 0,
           axisLabelVisible: true,
         });
