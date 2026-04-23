@@ -266,7 +266,6 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
   function showMacdPane(allKlines: KlineEntry[]) {
     const savedScroll = chart.timeScale().scrollPosition();
     const pane = chart.addPane();
-    pane.moveTo(1);
     macdPane = pane;
 
     macdHistogram = pane.addSeries(HistogramSeries, {
@@ -293,6 +292,15 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
       macdLine.setData(macdData.macdLine as LineData[]);
       macdSignal.setData(macdData.signalLine as LineData[]);
       macdHistogram.setData(macdData.histogram as HistogramData[]);
+    }
+
+    // If RSI is already present, it was at index 1 and MACD was just appended
+    // after it. Swap them so MACD sits directly below the main pane and RSI
+    // stays at the bottom.
+    if (rsiPane) {
+      const macdIdx = pane.paneIndex();
+      const rsiIdx = rsiPane.paneIndex();
+      if (macdIdx > rsiIdx) chart.swapPanes(macdIdx, rsiIdx);
     }
 
     updateStretchFactors(chart, rsiPane, pane);
@@ -359,16 +367,16 @@ export const chartAction: Action<HTMLDivElement, ChartParams> = (node, initialPa
 
     const allKlines = buildAllKlines(params.klines, params.currentKline);
 
-    // ── RSI/MACD toggle ──
-    if (params.showRsi !== prevShowRsi) {
-      if (params.showRsi) showRsiPane(allKlines);
-      else hideRsiPane();
-      prevShowRsi = params.showRsi;
-    }
+    // ── RSI/MACD toggle (MACD goes first so it naturally sits above RSI) ──
     if (params.showMacd !== prevShowMacd) {
       if (params.showMacd) showMacdPane(allKlines);
       else hideMacdPane();
       prevShowMacd = params.showMacd;
+    }
+    if (params.showRsi !== prevShowRsi) {
+      if (params.showRsi) showRsiPane(allKlines);
+      else hideRsiPane();
+      prevShowRsi = params.showRsi;
     }
 
     // ── Main-pane overlay toggles ──
